@@ -21,19 +21,17 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
-	"monitor/caas_monitor/cache"
 	"monitor/container_monitor/container"
 	"os"
 	"strings"
 	"time"
 
 	kafka "github.com/Shopify/sarama"
-	"github.com/golang/glog"
 )
 
 var (
 	brokers      = flag.String("kafka_broker_list", "223.202.32.59:8065", "kafka broker(s) csv")
-	topic        = flag.String("kafka_topic", "redis_stats", "kafka topic")
+	topic        = flag.String("kafka_topic", "capability-container", "kafka topic")
 	certFile     = flag.String("kafka_ssl_cert", "", "optional certificate file for TLS client authentication")
 	keyFile      = flag.String("kafka_ssl_key", "", "optional key file for TLS client authentication")
 	caFile       = flag.String("kafka_ssl_ca", "", "optional certificate authority file for TLS client authentication")
@@ -42,7 +40,6 @@ var (
 )
 
 type KafkaStorage struct {
-	memCache     *cache.MemCache
 	stop         chan bool
 	sendInterval time.Duration
 	producer     kafka.AsyncProducer
@@ -69,13 +66,27 @@ func (driver *KafkaStorage) startSend() {
 		default:
 			now := time.Now()
 			err := driver.send(last, now)
-			log.Println("~~~ Kafka send error.", err)
+			if err != nil {
+				log.Println("~~ Kafka send error.", err)
+			}
+
 			last = now
 			time.Sleep(driver.sendInterval)
 		}
 	}
 }
 
+type DetailSpec struct {
+	MonitorType string                          `json:"type"`
+	Data        []container.DetailContainerInfo `json:"data"`
+}
+
+func (driver *KafkaStorage) infoToDetailSpec(info []container.DetailContainerInfo) DetailSpec {
+	return DetailSpec{
+		MonitorType: driver.monitorType,
+		Data:        info,
+	}
+}
 func (driver *KafkaStorage) send(start, end time.Time) error {
 	log.Println("~~~ Enter Kafka Send.", start, end)
 
@@ -90,8 +101,8 @@ func (driver *KafkaStorage) send(start, end time.Time) error {
 		return nil
 	}
 
-	//detail := driver.infoToDetailSpec(ref, stats)
-	b, err := json.Marshal(stats)
+	detail := driver.infoToDetailSpec(stats)
+	b, err := json.Marshal(detail)
 
 	driver.producer.Input() <- &kafka.ProducerMessage{
 		Topic: driver.topic,
@@ -105,13 +116,13 @@ func (self *KafkaStorage) Close() error {
 	return self.producer.Close()
 }
 
-func New(memCache *cache.MemCache, monitorType string) (*KafkaStorage, error) {
+func New(monitorType string) (*KafkaStorage, error) {
 	log.Println("~~~ Enter kafka new.")
 	machineName, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
-	return newStorage(machineName, memCache, monitorType)
+	return newStorage(machineName, monitorType)
 }
 
 func generateTLSConfig() (*tls.Config, error) {
@@ -138,7 +149,7 @@ func generateTLSConfig() (*tls.Config, error) {
 	return nil, nil
 }
 
-func newStorage(machineName string, memCache *cache.MemCache, monitorType string) (*KafkaStorage, error) {
+func newStorage(machineName string, monitorType string) (*KafkaStorage, error) {
 	log.Println("~~~ Enter kafka newStorage.")
 	config := kafka.NewConfig()
 
@@ -155,7 +166,6 @@ func newStorage(machineName string, memCache *cache.MemCache, monitorType string
 	config.Producer.RequiredAcks = kafka.WaitForAll
 
 	brokerList := strings.Split(*brokers, ",")
-	glog.V(4).Infof("Kafka brokers:%q", brokers)
 	log.Println("Kafka brokers:%q", brokers)
 
 	producer, err := kafka.NewAsyncProducer(brokerList, config)
@@ -164,7 +174,6 @@ func newStorage(machineName string, memCache *cache.MemCache, monitorType string
 		return nil, err
 	}
 	ret := &KafkaStorage{
-		memCache:     memCache,
 		stop:         make(chan bool, 1),
 		sendInterval: *sendInterval,
 		producer:     producer,

@@ -16,7 +16,9 @@ var once sync.Once
 var containerClientInstance *cadvisor_client.Client
 
 const container_uuid_label = "io.rancher.container.uuid"
+const container_name_label = "io.rancher.project.id"
 const environment_id_label = "io.rancher.project.id"
+const namespace_label = "io.rancher.project.id"
 const (
 	DiskStatsAsync = "Async"
 	DiskStatsRead  = "Read"
@@ -78,6 +80,8 @@ type DetailContainerInfo struct {
 	Timestamp      time.Time              `json:"timestamp"`
 	Container_uuid string                 `json:"container_uuid"`
 	Environment_id string                 `json:"environment_id"`
+	Container_name string                 `json:"container_name"`
+	Namespace      string                 `json:"namespace"`
 	Stats          []DetailContainerStats `json:"stats"`
 }
 
@@ -124,6 +128,8 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 
 	info.Container_uuid = containerInfo.Spec.Labels[container_uuid_label]
 	info.Environment_id = containerInfo.Spec.Labels[environment_id_label]
+	info.Container_name = containerInfo.Spec.Labels[container_name_label]
+	info.Namespace = containerInfo.Spec.Labels[namespace_label]
 	info.Timestamp = time.Now()
 
 	var memoryLimit uint64

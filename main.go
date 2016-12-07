@@ -10,7 +10,7 @@ import (
 func main() {
 	flag.Parse()
 	//send to kafka
-	kafkaSender, errk := kafka.New("monitor_container")
+	kafkaSender, errk := kafka.New("container")
 	if errk != nil {
 		log.Println("error", errk)
 	}

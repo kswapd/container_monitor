@@ -16,9 +16,9 @@ var once sync.Once
 var containerClientInstance *cadvisor_client.Client
 
 const container_uuid_label = "io.rancher.container.uuid"
-const container_name_label = "io.rancher.project.id"
+const container_name_label = "io.rancher.container.name"
 const environment_id_label = "io.rancher.project.id"
-const namespace_label = "io.rancher.project.id"
+const namespace_label = "io.rancher.stack.name"
 const (
 	DiskStatsAsync = "Async"
 	DiskStatsRead  = "Read"
@@ -105,7 +105,7 @@ func RecentStats(start, end time.Time, maxStats int) ([]DetailContainerInfo, err
 	if err != nil {
 		return nil, err
 	}
-	//log.Println("### AllDockerContainers", conts)
+	//log.Println("### AllDockerContainers", len(conts), conts)
 	var containerInfos []DetailContainerInfo
 	for _, v := range conts {
 		//
@@ -116,8 +116,11 @@ func RecentStats(start, end time.Time, maxStats int) ([]DetailContainerInfo, err
 		}
 		if len(info.Stats) > 0 {
 			containerInfos = append(containerInfos, info)
+		} else {
+			log.Println("### no Stats", v)
 		}
 	}
+	log.Println("### containerInfos", len(containerInfos))
 	return containerInfos, nil
 }
 
@@ -128,6 +131,9 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 
 	info.Container_uuid = containerInfo.Spec.Labels[container_uuid_label]
 	info.Environment_id = containerInfo.Spec.Labels[environment_id_label]
+	if info.Environment_id == "" {
+		info.Environment_id = "1234"
+	}
 	info.Container_name = containerInfo.Spec.Labels[container_name_label]
 	info.Namespace = containerInfo.Spec.Labels[namespace_label]
 	info.Timestamp = time.Now()

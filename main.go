@@ -2,13 +2,14 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"monitor/container_monitor/storage/kafka"
+	"time"
 )
 
 func main() {
 	flag.Parse()
+
 	//send to kafka
 	kafkaSender, errk := kafka.New("container")
 	if errk != nil {
@@ -20,7 +21,7 @@ func main() {
 	}
 
 	//让主进程停住，不然主进程退了，goroutine也就退了
-	var input string
-	fmt.Scanln(&input)
-	fmt.Println("done")
+	for {
+		time.Sleep(100 * time.Second)
+	}
 }

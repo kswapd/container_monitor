@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	brokers      = flag.String("kafka_broker_list", "223.202.32.59:8065", "kafka broker(s) csv")
+	brokers      = flag.String("kafka_broker_list", "192.168.100.180:8074,192.168.100.181:8074,192.168.100.182:8074", "kafka broker(s) csv")
 	topic        = flag.String("kafka_topic", "capability-container", "kafka topic")
 	certFile     = flag.String("kafka_ssl_cert", "", "optional certificate file for TLS client authentication")
 	keyFile      = flag.String("kafka_ssl_key", "", "optional key file for TLS client authentication")

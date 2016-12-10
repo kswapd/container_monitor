@@ -8,6 +8,7 @@ docker run --rm -v "$PWD":/go/src/monitor/container_monitor -w /go/src/monitor/c
 
 
 ```
+docker pull mutemaniac/container-monitor:v0.1.1
 sudo docker run \
   --volume=/:/rootfs:ro \
   --volume=/var/run:/var/run:rw \
@@ -15,6 +16,6 @@ sudo docker run \
   --volume=/var/lib/docker/:/var/lib/docker:ro \
   --detach=true \
   --name=container-monitor \
-  mutemaniac/container-monitor:v0.1 \
+  mutemaniac/container-monitor:v0.1.1 \
   192.168.100.180:8074,192.168.100.181:8074,192.168.100.182:8074
 ```

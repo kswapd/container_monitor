@@ -1,8 +1,11 @@
 package container
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -14,11 +17,17 @@ import (
 
 var once sync.Once
 var containerClientInstance *cadvisor_client.Client
+var environmentId string = ""
 
-const container_uuid_label = "io.rancher.container.uuid"
-const container_name_label = "io.rancher.container.name"
-const environment_id_label = "io.rancher.project.id"
-const namespace_label = "io.rancher.stack.name"
+const (
+	container_uuid_label = "io.rancher.container.uuid"
+	container_name_label = "io.rancher.container.name"
+	namespace_label      = "io.rancher.stack.name"
+
+	environment_id_label = "caas.hna.environment.id"
+	hostUrl              = "http://rancher-metadata/latest/self/host"
+)
+
 const (
 	DiskStatsAsync = "Async"
 	DiskStatsRead  = "Read"
@@ -85,6 +94,36 @@ type DetailContainerInfo struct {
 	Stats          []DetailContainerStats `json:"stats"`
 }
 
+func getEvironmentId() (string, error) {
+	if len(environmentId) > 0 {
+		return environmentId, nil
+	}
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", hostUrl, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Add("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	var body map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	if err != nil {
+		return "", err
+	}
+	envid, ok := body["labels"].(map[string]string)[environment_id_label]
+	if ok {
+		environmentId = envid
+		return environmentId, nil
+	} else {
+		return "", errors.New("There is no environment_id.")
+	}
+}
+
 func getInstance() *cadvisor_client.Client {
 	once.Do(func() {
 		var url = fmt.Sprintf("http://%s:%d/", *host, *port)
@@ -129,11 +168,16 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 	info.Stats = []DetailContainerStats{}
 	//TODO 过滤系统容器。filter systerm container
 
-	info.Container_uuid = containerInfo.Spec.Labels[container_uuid_label]
-	info.Environment_id = containerInfo.Spec.Labels[environment_id_label]
-	if info.Environment_id == "" {
-		info.Environment_id = "1234"
+	var err error
+	info.Environment_id, err = getEvironmentId()
+	if err != nil {
+
 	}
+	// FIXME for test
+	// if info.Environment_id == "" {
+	// 	info.Environment_id = "1234"
+	// }
+	info.Container_uuid = containerInfo.Spec.Labels[container_uuid_label]
 	info.Container_name = containerInfo.Spec.Labels[container_name_label]
 	info.Namespace = containerInfo.Spec.Labels[namespace_label]
 	info.Timestamp = time.Now()

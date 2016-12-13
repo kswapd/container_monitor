@@ -115,11 +115,12 @@ func getEvironmentId() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	envid, ok := body["labels"].(map[string]string)[environment_id_label]
+	envid, ok := body["labels"].(map[string]interface{})[environment_id_label].(string)
 	if ok {
 		environmentId = envid
 		return environmentId, nil
 	} else {
+		log.Println("### There is no environment_id.", body)
 		return "", errors.New("There is no environment_id.")
 	}
 }
@@ -171,7 +172,7 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 	var err error
 	info.Environment_id, err = getEvironmentId()
 	if err != nil {
-
+		log.Println(err)
 	}
 	// FIXME for test
 	// if info.Environment_id == "" {

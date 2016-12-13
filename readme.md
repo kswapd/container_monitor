@@ -19,3 +19,13 @@ sudo docker run \
   mutemaniac/container-monitor:v0.1.1 \
   192.168.100.180:8074,192.168.100.181:8074,192.168.100.182:8074
 ```
+
+sudo docker run \
+  --volume=/:/rootfs:ro \
+  --volume=/var/run:/var/run:rw \
+  --volume=/sys:/sys:ro \
+  --volume=/var/lib/docker/:/var/lib/docker:ro \
+  --detach=true \
+  --name=container-monitor \
+  registry.time-track.cn/monitor/container-monitor:v0.5 \
+  223.202.32.59:8065

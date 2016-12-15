@@ -65,7 +65,7 @@ func (driver *KafkaStorage) startSend() {
 			return
 		default:
 			now := time.Now()
-			err := driver.send(last, now)
+			err := driver.Send(last, now)
 			if err != nil {
 				log.Println("~~ Kafka send error.", err)
 			}
@@ -87,7 +87,7 @@ func (driver *KafkaStorage) infoToDetailSpec(info []container.DetailContainerInf
 		Data:        info,
 	}
 }
-func (driver *KafkaStorage) send(start, end time.Time) error {
+func (driver *KafkaStorage) Send(start, end time.Time) error {
 	log.Println("~~~ Enter Kafka Send.", start, end)
 
 	stats, errCache := container.RecentStats(start, end, -1)
@@ -162,7 +162,7 @@ func newStorage(machineName string, monitorType string) (*KafkaStorage, error) {
 		config.Net.TLS.Enable = true
 		config.Net.TLS.Config = tlsConfig
 	}
-
+	config.Metadata.Retry.Max = 95536000
 	config.Producer.RequiredAcks = kafka.WaitForAll
 
 	brokerList := strings.Split(*brokers, ",")

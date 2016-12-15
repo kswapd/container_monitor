@@ -26,6 +26,7 @@ const (
 
 	environment_id_label = "caas.hna.environment.id"
 	hostUrl              = "http://rancher-metadata/latest/self/host"
+	hostBackupUrl        = "http://rancher-metadata/latest/self/host"
 )
 
 const (
@@ -107,7 +108,15 @@ func getEvironmentId() (string, error) {
 	req.Header.Add("Accept", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", err
+		req, err := http.NewRequest("GET", hostBackupUrl, nil)
+		if err != nil {
+			return "", err
+		}
+		req.Header.Add("Accept", "application/json")
+		resp, err = client.Do(req)
+		if err != nil {
+			return "", err
+		}
 	}
 	defer resp.Body.Close()
 	var body map[string]interface{}

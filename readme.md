@@ -29,3 +29,17 @@ sudo docker run \
   --name=container-monitor \
   registry.time-track.cn/monitor/container-monitor:v0.5 \
   223.202.32.59:8065
+
+sudo docker run \
+  --volume=/:/rootfs:ro \
+  --volume=/var/run:/var/run:rw \
+  --volume=/sys:/sys:ro \
+  --volume=/var/lib/docker/:/var/lib/docker:ro \
+  --publish=8071:8080 \
+  --detach=true \
+  --name=cadvisor \
+  google/cadvisor:latest
+
+
+
+./container_monitor -cadvisor_host=223.202.32.56 cadvisor_port=8071 -storage_driver=influxdb -storage_driver_host=223.202.32.56:8086

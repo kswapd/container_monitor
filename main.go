@@ -9,24 +9,39 @@ import (
 	"monitor/container_monitor/storage/kafka"
 	"strings"
 	"time"
+
+	"monitor/container_monitor/container"
 )
 
 var (
+	monitorType   = flag.String("monitor_type", "container", "")
 	storageDriver = flag.String("storage_driver", "kafka", fmt.Sprintf("Storage `driver` to use. Data is always cached shortly in memory, this controls where data is pushed besides the local cache. Empty means none. Options are: <empty>, %s", strings.Join(storage.ListDrivers(), ", ")))
 )
 
 func main() {
 	flag.Parse()
 
+	for {
+		//get evironment id first.
+		envid, err := container.GetEvironmentId()
+		if err != nil {
+			log.Println("GetEvironmentId error", err)
+			continue
+		}
+		if len(envid) != 0 {
+			break
+		}
+		time.Sleep(time.Second * 1)
+	}
+
 	var sender storage.StorageDriver
 	var errk error
-
 	if *storageDriver == "kafka" {
-		sender, errk = kafka.New("container")
+		sender, errk = kafka.New(*monitorType)
 	} else if *storageDriver == "influxdb" {
-		sender, errk = influxdb.New("container")
+		sender, errk = influxdb.New(*monitorType)
 	} else {
-		sender, errk = kafka.New("container")
+		sender, errk = kafka.New(*monitorType)
 	}
 
 	if errk != nil {

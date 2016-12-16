@@ -11,7 +11,8 @@
             "host": "127.0.0.1",
             "program": "${workspaceRoot}",
             "env": {},
-            "args": ["-cadvisor_host=172.16.5.149", "-cadvisor_port=8090"],
+            //"args": ["-cadvisor_host=223.202.32.56", "-cadvisor_port=8071", "-storage_driver=influxdb", "-storage_driver_host=223.202.32.56:8086"],
+            "args": ["-cadvisor_host=223.202.32.56", "-cadvisor_port=8071", "-kafka_topic=capability-container","-kafka_broker_list=223.202.32.59:8065","-influxdb_send_interval=2s"],
             "showLog": true
         }
     ]

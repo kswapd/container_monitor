@@ -26,7 +26,7 @@ const (
 
 	environment_id_label = "caas.hna.environment.id"
 	hostUrl              = "http://rancher-metadata/latest/self/host"
-	hostBackupUrl        = "http://rancher-metadata/latest/self/host"
+	hostBackupUrl        = "http://169.254.169.250/latest/self/host"
 )
 
 const (
@@ -95,7 +95,7 @@ type DetailContainerInfo struct {
 	Stats          []DetailContainerStats `json:"stats"`
 }
 
-func getEvironmentId() (string, error) {
+func GetEvironmentId() (string, error) {
 	if len(environmentId) > 0 {
 		return environmentId, nil
 	}
@@ -108,6 +108,7 @@ func getEvironmentId() (string, error) {
 	req.Header.Add("Accept", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
+		// use backup url
 		req, err := http.NewRequest("GET", hostBackupUrl, nil)
 		if err != nil {
 			return "", err
@@ -124,14 +125,21 @@ func getEvironmentId() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	envid, ok := body["labels"].(map[string]interface{})[environment_id_label].(string)
-	if ok {
-		environmentId = envid
-		return environmentId, nil
+
+	//get environment id
+	if _, ok := body["labels"]; ok {
+		labels := body["labels"].(map[string]interface{})
+		if _, ok := labels[environment_id_label]; ok {
+			envid := labels[environment_id_label].(string)
+			environmentId = envid
+		} else {
+			return "", errors.New("There is no environment_id./n")
+		}
 	} else {
-		log.Println("### There is no environment_id.", body)
-		return "", errors.New("There is no environment_id.")
+		return "", errors.New("There is no labels./n")
 	}
+
+	return environmentId, nil
 }
 
 func getInstance() *cadvisor_client.Client {
@@ -166,7 +174,7 @@ func RecentStats(start, end time.Time, maxStats int) ([]DetailContainerInfo, err
 		if len(info.Stats) > 0 {
 			containerInfos = append(containerInfos, info)
 		} else {
-			log.Println("### no Stats", v)
+			//og.Println("### no Stats", v)
 		}
 	}
 	log.Println("### containerInfos", len(containerInfos))
@@ -179,7 +187,7 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 	//TODO 过滤系统容器。filter systerm container
 
 	var err error
-	info.Environment_id, err = getEvironmentId()
+	info.Environment_id, err = GetEvironmentId()
 	if err != nil {
 		log.Println(err)
 	}

@@ -7,7 +7,7 @@ import (
 )
 
 type StorageDriver interface {
-	Send(start, end time.Time) error
+	Send(start, end time.Time) (time.Time, error)
 	Start() error
 }
 

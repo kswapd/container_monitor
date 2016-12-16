@@ -152,17 +152,17 @@ func (self *influxdbStorage) defaultReadyToFlush() bool {
 	return time.Since(self.lastWrite) >= self.bufferDuration
 }
 
-func (self *influxdbStorage) Send(start, end time.Time) error {
+func (self *influxdbStorage) Send(start, end time.Time) (time.Time, error) {
 	log.Println("~~~ Enter InfluxDB Send.", start, end)
-	stats, errCache := container.RecentStats(start, end, -1)
+	stats, last, errCache := container.RecentStats(start, end)
 
 	if errCache != nil {
 		log.Println("~~~ Kafka InfluxDB error.", errCache)
-		return errCache
+		return start, errCache
 	}
 	if len(stats) == 0 {
 		log.Println("~~~ Kafka InfluxDB 0.")
-		return nil
+		return start, nil
 	}
 
 	if len(stats) > 0 {
@@ -173,7 +173,7 @@ func (self *influxdbStorage) Send(start, end time.Time) error {
 		})
 		if err != nil {
 			log.Println("NewBatchPoints error. ", err)
-			return nil
+			return start, nil
 		}
 
 		self.statsToPoints(stats, bp)
@@ -183,7 +183,10 @@ func (self *influxdbStorage) Send(start, end time.Time) error {
 		}
 	}
 
-	return nil
+	if last.IsZero() {
+		last = start
+	}
+	return last, nil
 }
 
 func (self *influxdbStorage) Close() error {
@@ -208,12 +211,12 @@ func (driver *influxdbStorage) startSend() {
 			return
 		default:
 			now := time.Now()
-			err := driver.Send(last, now)
+			latest, err := driver.Send(last, now)
 			if err != nil {
-				log.Println("~~ Kafka send error.", err)
+				log.Println("~~~ Influxdb send error.", err)
 			}
 
-			last = now
+			last = latest
 			time.Sleep(driver.sendInterval)
 		}
 	}

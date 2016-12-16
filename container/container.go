@@ -15,11 +15,18 @@ import (
 	container_info "github.com/google/cadvisor/info/v1"
 )
 
+var (
+	host = flag.String("cadvisor_host", "127.0.0.1", "cadvisor host")
+	port = flag.Uint("cadvisor_port", 8080, "cadvisor port")
+)
+
 var once sync.Once
 var containerClientInstance *cadvisor_client.Client
 var environmentId string = ""
 
+const MAX_STATS = 4096
 const (
+	metadata_host_labels = "labels"
 	container_uuid_label = "io.rancher.container.uuid"
 	container_name_label = "io.rancher.container.name"
 	namespace_label      = "io.rancher.stack.name"
@@ -35,11 +42,6 @@ const (
 	DiskStatsSync  = "Sync"
 	DiskStatsTotal = "Total"
 	DiskStatsWrite = "Write"
-)
-
-var (
-	host = flag.String("cadvisor_host", "127.0.0.1", "cadvisor host")
-	port = flag.Uint("cadvisor_port", 8080, "cadvisor port")
 )
 
 type DetailContainerFilesystem struct {
@@ -127,8 +129,8 @@ func GetEvironmentId() (string, error) {
 	}
 
 	//get environment id
-	if _, ok := body["labels"]; ok {
-		labels := body["labels"].(map[string]interface{})
+	if _, ok := body[metadata_host_labels]; ok {
+		labels := body[metadata_host_labels].(map[string]interface{})
 		if _, ok := labels[environment_id_label]; ok {
 			envid := labels[environment_id_label].(string)
 			environmentId = envid
@@ -150,23 +152,24 @@ func getInstance() *cadvisor_client.Client {
 	return containerClientInstance
 }
 
-func RecentStats(start, end time.Time, maxStats int) ([]DetailContainerInfo, error) {
+func RecentStats(start, end time.Time) ([]DetailContainerInfo, time.Time, error) {
 	client := getInstance()
 
 	reqParams := container_info.ContainerInfoRequest{
-		NumStats: -1,
+		NumStats: MAX_STATS,
 		Start:    start,
 		End:      end,
 	}
 	conts, err := client.AllDockerContainers(&reqParams)
 	if err != nil {
-		return nil, err
+		return nil, start, err
 	}
 	//log.Println("### AllDockerContainers", len(conts), conts)
 	var containerInfos []DetailContainerInfo
+	var latestTime time.Time
 	for _, v := range conts {
 		//
-		info, err := convertContainerInfo(&v)
+		info, err := convertContainerInfo(&v, &latestTime)
 		if err != nil {
 			log.Println("", err)
 			continue
@@ -178,10 +181,11 @@ func RecentStats(start, end time.Time, maxStats int) ([]DetailContainerInfo, err
 		}
 	}
 	log.Println("### containerInfos", len(containerInfos))
-	return containerInfos, nil
+
+	return containerInfos, latestTime, nil
 }
 
-func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailContainerInfo, error) {
+func convertContainerInfo(containerInfo *container_info.ContainerInfo, latestTime *time.Time) (DetailContainerInfo, error) {
 	var info DetailContainerInfo
 	info.Stats = []DetailContainerStats{}
 	//TODO 过滤系统容器。filter systerm container
@@ -191,10 +195,7 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 	if err != nil {
 		log.Println(err)
 	}
-	// FIXME for test
-	// if info.Environment_id == "" {
-	// 	info.Environment_id = "1234"
-	// }
+
 	info.Container_uuid = containerInfo.Spec.Labels[container_uuid_label]
 	info.Container_name = containerInfo.Spec.Labels[container_name_label]
 	info.Namespace = containerInfo.Spec.Labels[namespace_label]
@@ -205,7 +206,7 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 		memoryLimit = containerInfo.Spec.Memory.Limit
 	}
 	for _, stats := range containerInfo.Stats {
-		detailStats, e := convertContainerStats(stats)
+		detailStats, e := convertContainerStats(stats, latestTime)
 		if e != nil {
 			log.Println(e)
 			continue
@@ -216,13 +217,13 @@ func convertContainerInfo(containerInfo *container_info.ContainerInfo) (DetailCo
 	return info, nil
 }
 
-// func convertContainerSpec(containerInfo *info.ContainerSpec) (map[string]interface{}, error) {
-// 	infos := make(map[string]interface{})
+//latestTime return the time of latest stats
+func convertContainerStats(containerStats *container_info.ContainerStats, latestTime *time.Time) (DetailContainerStats, error) {
 
-// 	return infos, nil
-// }
+	if containerStats.Timestamp.After(*latestTime) {
+		*latestTime = containerStats.Timestamp
+	}
 
-func convertContainerStats(containerStats *container_info.ContainerStats) (DetailContainerStats, error) {
 	var stats DetailContainerStats
 	stats.Timestamp = containerStats.Timestamp
 	stats.Cpu_usage_seconds_total = containerStats.Cpu.Usage.Total

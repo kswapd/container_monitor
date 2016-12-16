@@ -65,12 +65,12 @@ func (driver *KafkaStorage) startSend() {
 			return
 		default:
 			now := time.Now()
-			err := driver.Send(last, now)
+			latest, err := driver.Send(last, now)
 			if err != nil {
 				log.Println("~~ Kafka send error.", err)
 			}
 
-			last = now
+			last = latest
 			time.Sleep(driver.sendInterval)
 		}
 	}
@@ -87,18 +87,18 @@ func (driver *KafkaStorage) infoToDetailSpec(info []container.DetailContainerInf
 		Data:        info,
 	}
 }
-func (driver *KafkaStorage) Send(start, end time.Time) error {
+func (driver *KafkaStorage) Send(start, end time.Time) (time.Time, error) {
 	log.Println("~~~ Enter Kafka Send.", start, end)
 
-	stats, errCache := container.RecentStats(start, end, -1)
+	stats, last, errCache := container.RecentStats(start, end)
 
 	if errCache != nil {
 		log.Println("~~~ Kafka send error.", errCache)
-		return errCache
+		return start, errCache
 	}
 	if len(stats) == 0 {
 		log.Println("~~~ Kafka send 0.")
-		return nil
+		return start, nil
 	}
 
 	detail := driver.infoToDetailSpec(stats)
@@ -109,7 +109,10 @@ func (driver *KafkaStorage) Send(start, end time.Time) error {
 		Value: kafka.StringEncoder(b),
 	}
 	log.Println("~~~ End of Kafka Send.")
-	return err
+	if last.IsZero() {
+		last = start
+	}
+	return last, err
 }
 
 func (self *KafkaStorage) Close() error {

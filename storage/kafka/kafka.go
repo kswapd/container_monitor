@@ -65,7 +65,7 @@ func (driver *KafkaStorage) startSend() {
 			return
 		default:
 			now := time.Now()
-			latest, err := driver.Send(last, now)
+			latest, err := driver.Send(last.Add(time.Nanosecond), now)
 			if err != nil {
 				log.Println("~~ Kafka send error.", err)
 			}
@@ -108,10 +108,11 @@ func (driver *KafkaStorage) Send(start, end time.Time) (time.Time, error) {
 		Topic: driver.topic,
 		Value: kafka.StringEncoder(b),
 	}
-	log.Println("~~~ End of Kafka Send.")
+
 	if last.IsZero() {
 		last = start
 	}
+	//log.Println("~~~ End of Kafka Send. last", last)
 	return last, err
 }
 

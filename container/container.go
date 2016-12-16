@@ -164,9 +164,9 @@ func RecentStats(start, end time.Time) ([]DetailContainerInfo, time.Time, error)
 	if err != nil {
 		return nil, start, err
 	}
-	//log.Println("### AllDockerContainers", len(conts), conts)
+
 	var containerInfos []DetailContainerInfo
-	var latestTime time.Time
+	latestTime := time.Time{}
 	for _, v := range conts {
 		//
 		info, err := convertContainerInfo(&v, &latestTime)
@@ -176,8 +176,6 @@ func RecentStats(start, end time.Time) ([]DetailContainerInfo, time.Time, error)
 		}
 		if len(info.Stats) > 0 {
 			containerInfos = append(containerInfos, info)
-		} else {
-			//og.Println("### no Stats", v)
 		}
 	}
 	log.Println("### containerInfos", len(containerInfos))
